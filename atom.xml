@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="blog.utopia.nyaacat.cc/"/>
-  <updated>2017-12-29T10:35:19.568Z</updated>
+  <updated>2017-12-29T10:48:02.307Z</updated>
   <id>blog.utopia.nyaacat.cc/</id>
   
   <author>
@@ -21,17 +21,15 @@
     <link href="blog.utopia.nyaacat.cc/2017/12/29/reduce-minecraft-server-lag-without-limit-mob-amount/"/>
     <id>blog.utopia.nyaacat.cc/2017/12/29/reduce-minecraft-server-lag-without-limit-mob-amount/</id>
     <published>2017-12-29T09:48:26.000Z</published>
-    <updated>2017-12-29T10:35:19.568Z</updated>
+    <updated>2017-12-29T10:48:02.307Z</updated>
     
-    <content type="html"><![CDATA[<p>Minecraft 的 lag 問題已經司空見慣，各種控制資源消耗和卡頓的插件（plugin）也層出不窮。但是它們幾乎都非常用力地在一個點上：控制實體數量。</p><p>這並不無道理，因爲 Minecraft 中最消耗資源的部分就是實體。但是暴力控制實體數量會導致刷怪塔無法工作、掉落物清理過快等問題，在生存伺服器上可能引起玩家的强烈不滿。</p><p>所以，喵窩開發組從另一個角度做出了一些嘗試。</p><h2 id="啓發"><a href="#啓發" class="headerlink" title="啓發"></a>啓發</h2><p>生物實體的數量巨大，主要集中的地區顯然不是野外的自然刷怪區，而是玩家聚集的刷怪場、村民工程、動物養殖場等。如果不限制生物的數量和密度同時降低資源消耗，那麽衹能從生物實體的特性入手了。</p><p>Minecraft 最近的版本中引用了 <code>NoAI</code> 的NBT Tag，帶有此標簽的生物將不會進行 AI 計算。換句話説，除了占用伺服器内存中的一點數據，幾乎不會對這個生物實體有任何其他的 CPU 算力消耗。</p><p>也就是説，實體消耗的算力資源，絕大部分都是 AI 計算的消耗。</p><h2 id="方案"><a href="#方案" class="headerlink" title="方案"></a>方案</h2><p>抓上一票人做了一些測試，結果證實生物失去 AI 后大幅降低了 CPU 的算力消耗。這是個 positve 的信號，但是接下來的測試則遇到了問題。</p><p>對於養殖場，等生物數量變化不大（或者說衹是定期來清理并重新養殖一次）的設施，生物失去 AI 的影響很小，衹有在重新繁殖的時候需要恢復 AI。 但是刷怪塔因爲生物沒有 AI ，同時也被强制不受重力影響而幾乎無法使用，即便同時設置 NoGravity 為 false 也無效。</p><p>開發組中 <a href="https://im.librazy.org/" target="_blank" rel="noopener">@Librazy</a> 提到了 Spigot 的一個<a href="https://www.spigotmc.org/wiki/spigot-configuration/" target="_blank" rel="noopener">參數</a>  <code>nerf-spawner-mobs</code>，開啓時刷怪籠生成的生物將不會擁有 AI ，但是會被外界影響（例如水流和火球等）而移動。這個選項是全局的，因此不需要開啓，衹需要反射 spigot 中設置該功能的方法即可。</p><p>於是整個方案的流程便是儅伺服器卡頓時抑制生物密集區的生物 AI 從而降低資源占用，同時最大程度上保證玩家對生物的需求。『伺服器卡頓』的考量以伺服器 TPS 而非實體數量爲準，儅伺服器 TPS 高於一定值時即認爲伺服器沒有超負荷，不進行任何操作，最大程度上利用硬件的性能。</p><h2 id="實現"><a href="#實現" class="headerlink" title="實現"></a>實現</h2><p>插件主要由開發組的 <a href="https://github.com/cyilin" target="_blank" rel="noopener">@Cylin</a> 和 <a href="https://github.com/Librazy" target="_blank" rel="noopener">@Librazy</a> 編寫，源代碼以 <code>MIT</code> 開源協議發佈在<a href="https://github.com/NyaaCat/yasui" target="_blank" rel="noopener">Github</a>上。</p><p>插件每隔一段時間掃描伺服器的 TPS 確認運行狀態，如果 TPS 低於閥值則觸發 AI 控制， TPS 高於一定值且持續一段時間即認爲伺服器已恢復正常運行狀態，自動恢復被抑制的實體 AI 減少對生存體驗的影響。</p><p>實現過程中額外添加了一些可能被生存伺服器用到的功能：</p><p>   ·per-world 控制，如果玩家需要建造以仇恨爲基礎的小黑塔，可以關閉對末地的控制。<br>   ·實體總量和單區塊實體密度在 AI 抑制時納入考慮，更加精準抑制資源消耗較高的區塊。</p><h2 id="測試"><a href="#測試" class="headerlink" title="測試"></a>測試</h2><p><a href="https://github.com/NyaaCat/yasui" target="_blank" rel="noopener">yasui</a> 插件在 <a href="https://craft.moe/" target="_blank" rel="noopener">毛玉綫圈物語</a> 伺服器中應用測試。由於近期玩家數量爆炸式增長（日常在綫 5 人到~30 人甚至 50 人），各種實體控制插件均告無效。yasui 插件應用后被證實數次發揮作用，沒有任何實體數量限制的前提下將伺服器 TPS 穩定在 19.0 以上，伺服器實體承載數量從 ~2500 提升至接近 5000，而且還有繼續提高的可能（數次觸發中最高一次單世界實體記錄是 4808，其他世界中仍有大約 2000 實體未被計入）。</p><h2 id="來源"><a href="#來源" class="headerlink" title="來源"></a>來源</h2><p>從<a href="https://blog.phoenixlzx.com/2017/05/05/reduce-minecraft-server-lag-without-limit-mob-amount/" target="_blank" rel="noopener">Phoenix’s island</a>轉載。<br>特別感謝<a href="https://github.com/NyaaCat" target="_blank" rel="noopener">喵窩開發組</a>！<br>特別感謝<a href="https://nyaa.cat" target="_blank" rel="noopener">喵窩 | NyaaCat 社區</a>的各位苣菊！<br>特別感謝<a href="https://craft.moe" target="_blank" rel="noopener">毛玉綫圈物語·Sunshine!</a>提供了測試環境！<br>由 簡體中文（zh-CN） 翻譯為 正體中文（zh-TW）</p>]]></content>
+    <content type="html"><![CDATA[<p>Minecraft 的 lag 問題已經司空見慣，各種控制資源消耗和卡頓的插件（plugin）也層出不窮。但是它們幾乎都非常用力地在一個點上：控制實體數量。</p><p>這並不無道理，因爲 Minecraft 中最消耗資源的部分就是實體。但是暴力控制實體數量會導致刷怪塔無法工作、掉落物清理過快等問題，在生存伺服器上可能引起玩家的强烈不滿。</p><p>所以，喵窩開發組從另一個角度做出了一些嘗試。</p><a id="more"></a><h2 id="啓發"><a href="#啓發" class="headerlink" title="啓發"></a>啓發</h2><p>生物實體的數量巨大，主要集中的地區顯然不是野外的自然刷怪區，而是玩家聚集的刷怪場、村民工程、動物養殖場等。如果不限制生物的數量和密度同時降低資源消耗，那麽衹能從生物實體的特性入手了。</p><p>Minecraft 最近的版本中引用了 <code>NoAI</code> 的NBT Tag，帶有此標簽的生物將不會進行 AI 計算。換句話説，除了占用伺服器内存中的一點數據，幾乎不會對這個生物實體有任何其他的 CPU 算力消耗。</p><p>也就是説，實體消耗的算力資源，絕大部分都是 AI 計算的消耗。</p><h2 id="方案"><a href="#方案" class="headerlink" title="方案"></a>方案</h2><p>抓上一票人做了一些測試，結果證實生物失去 AI 后大幅降低了 CPU 的算力消耗。這是個 positve 的信號，但是接下來的測試則遇到了問題。</p><p>對於養殖場，等生物數量變化不大（或者說衹是定期來清理并重新養殖一次）的設施，生物失去 AI 的影響很小，衹有在重新繁殖的時候需要恢復 AI。 但是刷怪塔因爲生物沒有 AI ，同時也被强制不受重力影響而幾乎無法使用，即便同時設置 NoGravity 為 false 也無效。</p><p>開發組中 <a href="https://im.librazy.org/" target="_blank" rel="noopener">@Librazy</a> 提到了 Spigot 的一個<a href="https://www.spigotmc.org/wiki/spigot-configuration/" target="_blank" rel="noopener">參數</a>  <code>nerf-spawner-mobs</code>，開啓時刷怪籠生成的生物將不會擁有 AI ，但是會被外界影響（例如水流和火球等）而移動。這個選項是全局的，因此不需要開啓，衹需要反射 spigot 中設置該功能的方法即可。</p><p>於是整個方案的流程便是儅伺服器卡頓時抑制生物密集區的生物 AI 從而降低資源占用，同時最大程度上保證玩家對生物的需求。『伺服器卡頓』的考量以伺服器 TPS 而非實體數量爲準，儅伺服器 TPS 高於一定值時即認爲伺服器沒有超負荷，不進行任何操作，最大程度上利用硬件的性能。</p><h2 id="實現"><a href="#實現" class="headerlink" title="實現"></a>實現</h2><p>插件主要由開發組的 <a href="https://github.com/cyilin" target="_blank" rel="noopener">@Cylin</a> 和 <a href="https://github.com/Librazy" target="_blank" rel="noopener">@Librazy</a> 編寫，源代碼以 <code>MIT</code> 開源協議發佈在<a href="https://github.com/NyaaCat/yasui" target="_blank" rel="noopener">Github</a>上。</p><p>插件每隔一段時間掃描伺服器的 TPS 確認運行狀態，如果 TPS 低於閥值則觸發 AI 控制， TPS 高於一定值且持續一段時間即認爲伺服器已恢復正常運行狀態，自動恢復被抑制的實體 AI 減少對生存體驗的影響。</p><p>實現過程中額外添加了一些可能被生存伺服器用到的功能：</p><p>   ·per-world 控制，如果玩家需要建造以仇恨爲基礎的小黑塔，可以關閉對末地的控制。<br>   ·實體總量和單區塊實體密度在 AI 抑制時納入考慮，更加精準抑制資源消耗較高的區塊。</p><h2 id="測試"><a href="#測試" class="headerlink" title="測試"></a>測試</h2><p><a href="https://github.com/NyaaCat/yasui" target="_blank" rel="noopener">yasui</a> 插件在 <a href="https://craft.moe/" target="_blank" rel="noopener">毛玉綫圈物語</a> 伺服器中應用測試。由於近期玩家數量爆炸式增長（日常在綫 5 人到~30 人甚至 50 人），各種實體控制插件均告無效。yasui 插件應用后被證實數次發揮作用，沒有任何實體數量限制的前提下將伺服器 TPS 穩定在 19.0 以上，伺服器實體承載數量從 ~2500 提升至接近 5000，而且還有繼續提高的可能（數次觸發中最高一次單世界實體記錄是 4808，其他世界中仍有大約 2000 實體未被計入）。</p><h2 id="來源"><a href="#來源" class="headerlink" title="來源"></a>來源</h2><p>從<a href="https://blog.phoenixlzx.com/2017/05/05/reduce-minecraft-server-lag-without-limit-mob-amount/" target="_blank" rel="noopener">Phoenix’s island</a>轉載。<br>特別感謝<a href="https://github.com/NyaaCat" target="_blank" rel="noopener">喵窩開發組</a>！<br>特別感謝<a href="https://nyaa.cat" target="_blank" rel="noopener">喵窩 | NyaaCat 社區</a>的各位苣菊！<br>特別感謝<a href="https://craft.moe" target="_blank" rel="noopener">毛玉綫圈物語·Sunshine!</a>提供了測試環境！<br>由 簡體中文（zh-CN） 翻譯為 正體中文（zh-TW）</p>]]></content>
     
     <summary type="html">
     
-      
-      
-        &lt;p&gt;Minecraft 的 lag 問題已經司空見慣，各種控制資源消耗和卡頓的插件（plugin）也層出不窮。但是它們幾乎都非常用力地在一個點上：控制實體數量。&lt;/p&gt;
-&lt;p&gt;這並不無道理，因爲 Minecraft 中最消耗資源的部分就是實體。但是暴力控制實體數量會導致刷怪塔無
-      
+      &lt;p&gt;Minecraft 的 lag 問題已經司空見慣，各種控制資源消耗和卡頓的插件（plugin）也層出不窮。但是它們幾乎都非常用力地在一個點上：控制實體數量。&lt;/p&gt;
+&lt;p&gt;這並不無道理，因爲 Minecraft 中最消耗資源的部分就是實體。但是暴力控制實體數量會導致刷怪塔無法工作、掉落物清理過快等問題，在生存伺服器上可能引起玩家的强烈不滿。&lt;/p&gt;
+&lt;p&gt;所以，喵窩開發組從另一個角度做出了一些嘗試。&lt;/p&gt;
     
     </summary>
     
@@ -43,17 +41,13 @@
     <link href="blog.utopia.nyaacat.cc/2017/12/29/%E4%BC%BA%E6%9C%8D%E5%99%A8%E7%9C%8B%E8%B5%B7%E4%BE%86%E5%A5%BD%E5%83%8F%E5%92%95%E5%92%95%E4%BA%86/"/>
     <id>blog.utopia.nyaacat.cc/2017/12/29/伺服器看起來好像咕咕了/</id>
     <published>2017-12-29T08:13:02.000Z</published>
-    <updated>2017-12-29T08:23:39.556Z</updated>
+    <updated>2017-12-29T10:49:51.446Z</updated>
     
-    <content type="html"><![CDATA[<p>hmmmmm,一個不太好的消息。。管理組現在好像咕咕了。。。- -</p><h2 id="突然的咕咕"><a href="#突然的咕咕" class="headerlink" title="突然的咕咕"></a>突然的咕咕</h2><p>突然的咕咕如同晴天霹靂，閃瞎了我的眼。</p><h3 id="剛買了伺服器的我"><a href="#剛買了伺服器的我" class="headerlink" title="剛買了伺服器的我"></a>剛買了伺服器的我</h3><p>表示：mmp</p><h3 id="如果真的咕咕了博客怎麽辦呢？"><a href="#如果真的咕咕了博客怎麽辦呢？" class="headerlink" title="如果真的咕咕了博客怎麽辦呢？"></a>如果真的咕咕了博客怎麽辦呢？</h3><p>轉換爲在下的個人博客。<br>*Github Pages是個好東西，建議大家都玩玩<br><a href="https://Github.com" target="_blank" rel="noopener">Github</a></p>]]></content>
+    <content type="html"><![CDATA[<p>hmmmmm,一個不太好的消息。。管理組現在好像咕咕了。。。- -<br><a id="more"></a></p><h2 id="突然的咕咕"><a href="#突然的咕咕" class="headerlink" title="突然的咕咕"></a>突然的咕咕</h2><p>突然的咕咕如同晴天霹靂，閃瞎了我的眼。</p><h3 id="剛買了伺服器的我"><a href="#剛買了伺服器的我" class="headerlink" title="剛買了伺服器的我"></a>剛買了伺服器的我</h3><p>表示：mmp</p><h3 id="如果真的咕咕了博客怎麽辦呢？"><a href="#如果真的咕咕了博客怎麽辦呢？" class="headerlink" title="如果真的咕咕了博客怎麽辦呢？"></a>如果真的咕咕了博客怎麽辦呢？</h3><p>轉換爲在下的個人博客。<br>*Github Pages是個好東西，建議大家都玩玩<br><a href="https://Github.com" target="_blank" rel="noopener">Github</a></p>]]></content>
     
     <summary type="html">
     
-      
-      
-        &lt;p&gt;hmmmmm,一個不太好的消息。。管理組現在好像咕咕了。。。- -&lt;/p&gt;
-&lt;h2 id=&quot;突然的咕咕&quot;&gt;&lt;a href=&quot;#突然的咕咕&quot; class=&quot;headerlink&quot; title=&quot;突然的咕咕&quot;&gt;&lt;/a&gt;突然的咕咕&lt;/h2&gt;&lt;p&gt;突然的咕咕如同晴天霹靂，閃瞎了我的
-      
+      &lt;p&gt;hmmmmm,一個不太好的消息。。管理組現在好像咕咕了。。。- -&lt;br&gt;
     
     </summary>
     
@@ -65,17 +59,13 @@
     <link href="blog.utopia.nyaacat.cc/2017/12/28/%E6%9C%ACblog%E7%9A%84%E5%BB%BA%E7%AB%8B/"/>
     <id>blog.utopia.nyaacat.cc/2017/12/28/本blog的建立/</id>
     <published>2017-12-29T04:10:31.000Z</published>
-    <updated>2017-12-29T05:02:56.452Z</updated>
+    <updated>2017-12-29T10:48:52.710Z</updated>
     
-    <content type="html"><![CDATA[<p>歡迎來到Utopia 團隊的官方博客。此博客意味著Utopia的網頁域名以及伺服器正式部署完成。此blog將會表明未來的發展方向。*這大概算是readme.md</p><h2 id="Utopia的創立"><a href="#Utopia的創立" class="headerlink" title="Utopia的創立"></a>Utopia的創立</h2><h3 id="簡單介紹"><a href="#簡單介紹" class="headerlink" title="簡單介紹"></a>簡單介紹</h3><p>Utopia的前身乃是美食家伺服器，該伺服器由於技術與人員原因出現問題 *唐諾 的失蹤<br>於是涼涼，隨後月行重組管理組，并且開始主導Utopia project。</p>]]></content>
+    <content type="html"><![CDATA[<p>歡迎來到Utopia 團隊的官方博客。此博客意味著Utopia的網頁域名以及伺服器正式部署完成。此blog將會表明未來的發展方向。<br>*這大概算是readme.md<br><a id="more"></a></p><h2 id="Utopia的創立"><a href="#Utopia的創立" class="headerlink" title="Utopia的創立"></a>Utopia的創立</h2><h3 id="簡單介紹"><a href="#簡單介紹" class="headerlink" title="簡單介紹"></a>簡單介紹</h3><p>Utopia的前身乃是美食家伺服器，該伺服器由於技術與人員原因出現問題 *唐諾 的失蹤<br>於是涼涼，隨後月行重組管理組，并且開始主導Utopia project。</p>]]></content>
     
     <summary type="html">
     
-      
-      
-        &lt;p&gt;歡迎來到Utopia 團隊的官方博客。此博客意味著Utopia的網頁域名以及伺服器正式部署完成。此blog將會表明未來的發展方向。*這大概算是readme.md&lt;/p&gt;
-&lt;h2 id=&quot;Utopia的創立&quot;&gt;&lt;a href=&quot;#Utopia的創立&quot; class=&quot;heade
-      
+      &lt;p&gt;歡迎來到Utopia 團隊的官方博客。此博客意味著Utopia的網頁域名以及伺服器正式部署完成。此blog將會表明未來的發展方向。&lt;br&gt;*這大概算是readme.md&lt;br&gt;
     
     </summary>
     
