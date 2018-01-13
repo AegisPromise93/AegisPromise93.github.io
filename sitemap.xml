@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>blog.utopia.nyaacat.cc/rules/index.html</loc>
+    
+    <lastmod>2018-01-13T02:40:20.314Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>blog.utopia.nyaacat.cc/2018/01/12/We-love-NyaaCat/</loc>
     
     <lastmod>2018-01-12T11:46:57.575Z</lastmod>
@@ -12,13 +19,6 @@
     <loc>blog.utopia.nyaacat.cc/links/index.html</loc>
     
     <lastmod>2018-01-12T05:58:25.890Z</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>blog.utopia.nyaacat.cc/rules/index.html</loc>
-    
-    <lastmod>2018-01-12T05:52:12.862Z</lastmod>
     
   </url>
   
